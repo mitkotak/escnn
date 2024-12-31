@@ -11,32 +11,30 @@ __all__ = ["SingleBlockBasisSampler", "block_basissampler"]
 
 
 class SingleBlockBasisSampler(torch.nn.Module, BasisManager):
-    
+
     def __init__(self,
                  basis: SteerableKernelBasis,
                  mask: np.ndarray = None
                  ):
         r"""
-        
+
         Basis expansion method for a single contiguous block, i.e. for kernels whose input type and output type contain
         only fields of one type.
-        
+
         Args:
             basis (SteerableKernelBasis): analytical basis to sample
             mask (np.ndarray, optional): binary mask to select only a subset of the basis elements.
                                          By default (``None``), all elements are kept.
-            
+
         """
 
         super(SingleBlockBasisSampler, self).__init__()
-        
+
         self.basis = basis
-        
+
         if mask is None:
             mask = np.ones(len(basis), dtype=bool)
-            
-        assert mask.shape == (len(basis),) and mask.dtype == bool
-        
+
         if not mask.any():
             raise EmptyBasisException
 
@@ -68,7 +66,11 @@ class SingleBlockBasisSampler(torch.nn.Module, BasisManager):
         basis = basis.permute((0, 2, 3, 1))
 
         if self._mask is not None:
-            basis = basis[:, :, :, self._mask]
+            # Expand mask to match basis dimensions
+            # TODO: There's a memcopy here
+            _mask = torch.from_numpy(self._mask).to(device=basis.device)
+            expanded_mask = _mask.expand(basis.shape[0], basis.shape[1], basis.shape[2], -1)
+            basis = torch.where(expanded_mask, basis, torch.zeros_like(basis))
 
         # return basis.to(device=device, dtype=points.dtype) * self.sizes
         return basis * self.sizes
@@ -93,7 +95,7 @@ class SingleBlockBasisSampler(torch.nn.Module, BasisManager):
 
     def dimension(self) -> int:
         return self._mask.astype(int).sum()
-    
+
     def __eq__(self, other):
         if isinstance(other, SingleBlockBasisSampler
                       ):
@@ -103,7 +105,7 @@ class SingleBlockBasisSampler(torch.nn.Module, BasisManager):
             )
         else:
             return False
-    
+
     def __hash__(self):
         return 10000 * hash(self.basis) + hash(self._mask.tobytes())
 
@@ -142,7 +144,7 @@ def block_basissampler(basis: SteerableKernelBasis,
             _stored_filters[key] = SingleBlockBasisSampler(basis, mask)
 
         return _stored_filters[key]
-    
+
     else:
         return SingleBlockBasisSampler(basis, mask)
 
