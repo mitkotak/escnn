@@ -41,7 +41,7 @@ class BlocksBasisSampler(torch.nn.Module, BasisManager):
             recompute (bool, optional): whether to recompute new bases or reuse, if possible, already built tensors.
 
         """
-    
+
         super(BlocksBasisSampler, self).__init__()
 
         self._in_reprs = in_reprs
@@ -275,7 +275,7 @@ class BlocksBasisSampler(torch.nn.Module, BasisManager):
         block_sampler = getattr(self, f"block_sampler_{io_pair}")
 
         # retrieve the linear coefficients for the basis sampler
-        coefficients = weights[self._weights_ranges[io_pair][0]:self._weights_ranges[io_pair][1]]
+        coefficients = weights[int(self._weights_ranges[io_pair][0]):int(self._weights_ranges[io_pair][1])]
 
         # reshape coefficients for the batch matrix multiplication
         coefficients = coefficients.view(
@@ -305,7 +305,7 @@ class BlocksBasisSampler(torch.nn.Module, BasisManager):
         block_sampler = getattr(self, f"block_sampler_{io_pair}")
 
         # retrieve the linear coefficients for the basis sampler
-        coefficients = weights[self._weights_ranges[io_pair][0]:self._weights_ranges[io_pair][1]]
+        coefficients = weights[int(self._weights_ranges[io_pair][0]):int(self._weights_ranges[io_pair][1])]
 
         # reshape coefficients for the batch matrix multiplication
         coefficients = coefficients.view(
@@ -381,9 +381,9 @@ class BlocksBasisSampler(torch.nn.Module, BasisManager):
                 if self._contiguous[io_pair]:
                     _filter[
                         :,
-                        out_indices[0]:out_indices[1],
-                        in_indices[0]:in_indices[1],
-                    ] = expanded.reshape(S, out_indices[2], in_indices[2])
+                        int(out_indices[0]):int(out_indices[1]),
+                        int(in_indices[0]):int(in_indices[1]),
+                    ] = expanded.reshape(S, int(out_indices[2]), int(in_indices[2]))
                 else:
                     out_indices, in_indices = torch.meshgrid([out_indices, in_indices], indexing='ij')
                     in_indices = in_indices.reshape(-1)
@@ -454,7 +454,7 @@ class BlocksBasisSampler(torch.nn.Module, BasisManager):
                 out_indices = getattr(self, f"out_indices_{io_pair}")
 
                 if self._contiguous[io_pair]:
-                    _input = input[:, :, in_indices[0]:in_indices[1]]
+                    _input = input[:, :, int(in_indices[0]):int(in_indices[1])]
                 else:
                     _input = input[:, :, in_indices]
 
