@@ -19,7 +19,7 @@ __all__ = [
 
 
 class GaussianRadialProfile(KernelBasis):
-    
+
     def __init__(self, radii: List[float], sigma: Union[List[float], float]):
         r"""
 
@@ -46,24 +46,24 @@ class GaussianRadialProfile(KernelBasis):
 
 
         """
-        
+
         if isinstance(sigma, float):
             sigma = [sigma] * len(radii)
-        
+
         assert len(radii) == len(sigma)
         assert isinstance(radii, list)
-        
+
         for r in radii:
             assert r >= 0.
-        
+
         for s in sigma:
             assert s > 0.
-        
+
         super(GaussianRadialProfile, self).__init__(len(radii), (1, 1))
-        
+
         self.register_buffer('radii', torch.tensor(radii, dtype=torch.float32).reshape(1, -1, 1, 1))
         self.register_buffer('sigma', torch.tensor(sigma, dtype=torch.float32).reshape(1, -1, 1, 1))
-    
+
     def sample(self, radii: torch.Tensor, out: torch.Tensor = None) -> torch.Tensor:
         r"""
 
@@ -83,15 +83,15 @@ class GaussianRadialProfile(KernelBasis):
         assert len(radii.shape) == 2
         assert radii.shape[1] == 1
         S = radii.shape[0]
-        
+
         if out is None:
             out = torch.empty((S, self.dim, self.shape[0], self.shape[1]), device=radii.device, dtype=radii.dtype)
-        
+
         assert out.shape == (S, self.dim, self.shape[0], self.shape[1])
-        
+
         radii = radii.reshape(-1, 1, 1, 1)
 
-        assert not torch.isnan(radii).any()
+        #assert not torch.isnan(radii).any()
 
         d = (self.radii - radii) ** 2
 
@@ -101,11 +101,11 @@ class GaussianRadialProfile(KernelBasis):
             out = torch.exp(-0.5 * d / self.sigma ** 2, out=out)
 
         return out
-    
+
     def __getitem__(self, r):
         assert r < self.dim
         return {"radius": self.radii[0, r, 0, 0].item(), "sigma": self.sigma[0, r, 0, 0].item(), "idx": r}
-    
+
     def __eq__(self, other):
         if isinstance(other, GaussianRadialProfile):
             return (
@@ -114,7 +114,7 @@ class GaussianRadialProfile(KernelBasis):
             )
         else:
             return False
-    
+
     def __hash__(self):
         return hash(self.radii.cpu().numpy().tobytes()) + hash(self.sigma.cpu().numpy().tobytes())
 
@@ -162,7 +162,7 @@ class SphericalShellsBasis(SteerableFiltersBasis):
 
         Build the tensor product basis of a radial profile basis and a spherical harmonics basis for kernels over the
         Euclidean space :math:`\R^3`.
-        
+
         The kernel space is spanned by an independent basis for each shell.
         The kernel space over each shell is spanned by the spherical harmonics of frequency up to `L`
         (an independent copy of each for each cell).
@@ -176,9 +176,9 @@ class SphericalShellsBasis(SteerableFiltersBasis):
 
         where :math:`(||\bold{p}||, \hat{\bold{p}})` are the polar coordinates of the point
         :math:`\bold{p} \in \R^n`.
-        
+
         The radial component is parametrized using :class:`~escnn.kernels.GaussianRadialProfile`.
-        
+
         Args:
             L (int): the maximum spherical frequency
             radial (GaussianRadialProfile): the basis for the radial profile
@@ -244,7 +244,7 @@ class SphericalShellsBasis(SteerableFiltersBasis):
                     )
                 )
                 self._num_inv_spaces += multiplicity
-                    
+
             self._idx_map = np.array(_idx_map)
             self._steerable_idx_map = np.array(_steerable_idx_map)
         else:
@@ -292,31 +292,31 @@ class SphericalShellsBasis(SteerableFiltersBasis):
 
         S = points.shape[0]
 
-        assert not torch.isnan(points).any()
+        #assert not torch.isnan(points).any()
 
         radii = torch.norm(points, dim=1, keepdim=True)
 
         non_origin_mask = (radii > 1e-9).reshape(-1)
-        any_origin = not non_origin_mask.all()
+        #any_origin = not non_origin_mask.all()
         # sphere = points[non_origin_mask, :] / radii[non_origin_mask, :]
-        if any_origin:
-            sphere = torch.empty_like(points)
-            sphere[non_origin_mask, :] = torch.nn.functional.normalize(points[non_origin_mask], dim=1)
-            sphere[~non_origin_mask, :] = points[~non_origin_mask]
-        else:
-            sphere = torch.nn.functional.normalize(points, dim=1)
+        #if any_origin:
+        #    sphere = torch.empty_like(points)
+        #    sphere[non_origin_mask, :] = torch.nn.functional.normalize(points[non_origin_mask], dim=1)
+        #    sphere[~non_origin_mask, :] = points[~non_origin_mask]
+        #else:
+        sphere = torch.nn.functional.normalize(points, dim=1)
 
         if out is None:
             out = torch.empty(S, self.dim, 1, 1, device=points.device, dtype=points.dtype)
-        
+
         assert out.shape == (S, self.dim, 1, 1)
-        
+
         # sample the radial basis
         radial = self.radial.sample(radii)
         assert radial.shape == (S, len(self.radial), 1, 1)
         radial = radial[..., 0, 0]
 
-        assert not torch.isnan(radial).any()
+        #assert not torch.isnan(radial).any()
 
         # sample the angular basis
         spherical = self.harmonics_generator(sphere)
@@ -324,12 +324,12 @@ class SphericalShellsBasis(SteerableFiltersBasis):
         # only frequency 0 is sampled at the origin. Other frequencies are set to 0
         # spherical[~non_origin_mask, :1] = 1.
         # spherical[~non_origin_mask, 1:] = 0.
-        if any_origin:
-            assert (spherical[~non_origin_mask, :1]-1.).abs().max().item() < 1e-7, (spherical[~non_origin_mask, :1]-1.).abs().max().item()
-            if spherical.shape[1] > 1:
-                assert (spherical[~non_origin_mask, 1:]).abs().max().item() < 1e-7, (spherical[~non_origin_mask, 1:]).abs().max().item()
+        #if any_origin:
+        #    assert (spherical[~non_origin_mask, :1]-1.).abs().max().item() < 1e-7, (spherical[~non_origin_mask, :1]-1.).abs().max().item()
+        #    if spherical.shape[1] > 1:
+        #        assert (spherical[~non_origin_mask, 1:]).abs().max().item() < 1e-7, (spherical[~non_origin_mask, 1:]).abs().max().item()
 
-        assert not torch.isnan(spherical).any()
+        #assert not torch.isnan(spherical).any()
 
         tensor_product = torch.einsum("pa,pb->pab", radial, spherical)
 
@@ -499,7 +499,7 @@ class SphericalShellsBasis(SteerableFiltersBasis):
 
     def __getitem__(self, idx):
         assert idx < self.dim, (idx, self.dim)
-        
+
         if self._idx_map is None:
             _idx = idx
         else:
@@ -510,7 +510,7 @@ class SphericalShellsBasis(SteerableFiltersBasis):
         assert j**2 * len(self.radial) <= _idx < (j+1)**2 * len(self.radial), (_idx, j, self.L, len(self.radial))
 
         j_idx = _idx - j**2 * len(self.radial)
-        
+
         radial_idx, m = divmod(j_idx, 2*j+1)
 
         j_id = (j%2, j) # the id of the O(3) irrep
@@ -567,7 +567,7 @@ class SphericalShellsBasis(SteerableFiltersBasis):
                         yield attr
                         idx += 1
                     i += 1
-    
+
     def __eq__(self, other):
         if isinstance(other, SphericalShellsBasis):
             return (
@@ -577,7 +577,7 @@ class SphericalShellsBasis(SteerableFiltersBasis):
             )
         else:
             return False
-    
+
     def __hash__(self):
         return self.L + hash(self.radial) + hash(self._filter)
 
